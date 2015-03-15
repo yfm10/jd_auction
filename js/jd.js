@@ -7,18 +7,21 @@
         return;
     }
     var uid = /[\d]{4,8}/.exec(addr)[0];
+    var isauto=false,timeDelayId,timeIntervalId,blanksp="&nbsp;&nbsp;&nbsp;&nbsp;";
     var code = "<div id='qp_div'>"
-            + "商品6折价：<input type='text' id='qp_price_limit' readonly />&nbsp;&nbsp;&nbsp;&nbsp;"
-                + "最高出价<input type='text' id='qp_max_price' />&nbsp;&nbsp;&nbsp;&nbsp;"
-            + "<input type='button' value='后台开抢' id='qp_btn_begin' class='qp_btn'/>&nbsp;&nbsp;&nbsp;&nbsp;"
-            + "<input type='button' value='仅刷价格' id='qp_btn_refresh' class='qp_btn' />&nbsp;&nbsp;&nbsp;&nbsp;"
+            + "商品6折价：<input type='text' id='qp_price_limit' readonly />"+blanksp
+            + "最高出价<input type='text' id='qp_max_price' />"+blanksp
+            + "<input type='button' value='后台开抢' id='qp_btn_begin' class='qp_btn'/>"+blanksp
+            + "<input type='button' value='仅刷价格' id='qp_btn_refresh' class='qp_btn' />"+blanksp
+            + "<input type='button' value='自动拍' id='qp_btn_auto' class='qp_btn' />"+blanksp
             + "【开启控制台可查看抢拍提示】</div>";
     $('body').prepend(code);
     $('#qp_price_limit').val(priceLimit);
     $('#qp_max_price').val(priceLimit);
 
-    $('#qp_btn_refresh').on('click', function(){queryPrice(uid, priceLimit)});
-    $('#qp_btn_begin').on('click', function(){crazyBuying(uid, priceLimit)});
+    $('#qp_btn_refresh').on('click', function(){queryPrice(uid, priceLimit);});
+    $('#qp_btn_begin').on('click', function(){crazyBuying(uid, priceLimit);});
+    $('#qp_btn_auto').on('click', autoBuying);
 
     function queryPrice(uid, priceLimit) {
         console.info("自动报价，"+uid+"自动输入价格。");
@@ -33,6 +36,9 @@
                $("#quantityFormId ").find(".quantity-text:last").val(price);
             } else {
                 console.info("超出限制价格，不自动输入抢拍价！");
+                $('#qp_btn_auto').val("自动抢");
+                clearTimeout(timeDelayId);
+                clearTimeout(timeIntervalId);
             }
         });
     }
@@ -54,8 +60,50 @@
                 }, 'json');
             } else {
                 console.info("超出限制价格，停止抢购！");
+                $('#qp_btn_auto').val("自动抢");
+                clearTimeout(timeDelayId);
+                clearTimeout(timeIntervalId);
             }
         });
+    }
+
+    function autoBuying(){
+        isauto=!isauto;
+        var $btn=$("#qp_btn_auto");
+        if(isauto){   
+            //拍卖未结束
+            var overTime=$('#product-intro').find(".over-time").text();
+            var delayTime=0;
+            if(overTime.indexOf("小时")>0){
+                delayTime+=parseInt(overTime.substring(0,overTime.indexOf("小时")))*3600*1000;
+            }
+            if(overTime.indexOf("分")>0){
+                delayTime+=parseInt(overTime.substring(overTime.indexOf("分")-2,overTime.indexOf("分")))*60*1000;
+            }
+            if(overTime.indexOf("秒")>0){
+                delayTime+=parseInt(overTime.substring(overTime.indexOf("秒")-2,overTime.indexOf("秒")))*1000;
+            }
+            if(delayTime>0){
+                $btn.val("抢拍中");
+                if(delayTime<=3500){
+                    delayTime=0;
+                }else{
+                    delayTime-=3500;
+                }
+                console.log("定时抢拍中......");
+                timeDelayId = setTimeout(startBuying,delayTime);
+            }else{
+                $btn.val("拍卖结束");
+            }
+        }else{
+           $btn.val("自动抢");
+           clearTimeout(timeDelayId);
+           clearTimeout(timeIntervalId);
+        }
+    }
+    
+    function startBuying(){
+        timeIntervalId=setInterval(function(){crazyBuying(uid, priceLimit);},500);
     }
 
     function sayMsg(response) {
@@ -73,6 +121,7 @@
             }
             if (response.code == "450") {
                 doErrorMsg("哎呀！出价失败~","拍卖已经结束，您略晚了一步~");
+
             }
     /*            if (response.code == "455") {
                 alert("您的京豆不足或三次试拍机会已用完！");
